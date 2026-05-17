@@ -1,0 +1,126 @@
+syntax = "proto3";
+
+package safevid;
+
+option java_package = "com.safevid.tracking";
+option java_outer_classname = "TrackingProto";
+
+// ─── Core types ───────────────────────────────────────────────────────────────
+
+message BoundingBox {
+  float x1 = 1;
+  float y1 = 2;
+  float x2 = 3;
+  float y2 = 4;
+}
+
+message Velocity {
+  float vx = 1;
+  float vy = 2;
+}
+
+enum AnomalyType {
+  ANOMALY_UNKNOWN           = 0;
+  ANOMALY_OVERSPEED         = 1;
+  ANOMALY_WRONG_DIRECTION   = 2;
+  ANOMALY_STALLED           = 3;
+  ANOMALY_SUDDEN_STOP       = 4;
+  ANOMALY_STATISTICAL       = 5;
+  ANOMALY_UNKNOWN_VEHICLE   = 6;
+}
+
+message Anomaly {
+  AnomalyType type        = 1;
+  float severity          = 2;  // 0.0 - 1.0
+  string description      = 3;
+}
+
+// ─── Track events (edge → central) ───────────────────────────────────────────
+
+message TrackEvent {
+  int32  camera_id                  = 1;
+  int64  frame_number               = 2;
+  double timestamp                  = 3;
+  int32  track_id                   = 4;
+  BoundingBox bbox                  = 5;
+  Velocity velocity                 = 6;
+  string vehicle_id                 = 7;  // empty if not identified
+  float  identification_confidence  = 8;
+  bool   is_safe_to_act             = 9;
+  repeated Anomaly anomalies        = 10;
+}
+
+// ─── Vehicle state (central service) ─────────────────────────────────────────
+
+message VehicleState {
+  string vehicle_id         = 1;
+  int32  last_seen_camera   = 2;
+  int64  last_seen_frame    = 3;
+  double last_seen_timestamp = 4;
+  float  position_x         = 5;
+  float  position_y         = 6;
+  float  velocity_x         = 7;
+  float  velocity_y         = 8;
+  repeated Anomaly active_anomalies = 9;
+}
+
+// ─── Service definitions ──────────────────────────────────────────────────────
+
+// Edge nodes stream track events to this service
+service TrackingService {
+  // Stream of track events from a camera pipeline
+  rpc PublishTrackEvent(TrackEvent) returns (PublishResponse);
+
+  // Get current state of all active vehicles
+  rpc GetAllVehicles(GetAllVehiclesRequest) returns (GetAllVehiclesResponse);
+
+  // Get state of a specific vehicle
+  rpc GetVehicle(GetVehicleRequest) returns (VehicleState);
+
+  // Stream vehicle state updates in real time
+  rpc WatchVehicles(WatchRequest) returns (stream VehicleState);
+}
+
+message PublishResponse {
+  bool   success      = 1;
+  string error_msg    = 2;
+}
+
+message GetAllVehiclesRequest {
+  bool include_stale  = 1;  // include vehicles not seen for >5 seconds
+}
+
+message GetAllVehiclesResponse {
+  repeated VehicleState vehicles = 1;
+  int32 total_count              = 2;
+}
+
+message GetVehicleRequest {
+  string vehicle_id = 1;
+}
+
+message WatchRequest {
+  repeated string vehicle_ids = 1;  // empty = watch all
+}
+
+// ─── Action authorization service ────────────────────────────────────────────
+
+// Before taking any physical action, the control system queries this service
+// SOTIF mitigation: central authority decides if identification is sufficient
+service ActionAuthorizationService {
+  // Request permission to act on a vehicle (open gate, issue move command)
+  rpc RequestAction(ActionRequest) returns (ActionResponse);
+}
+
+message ActionRequest {
+  string vehicle_id                 = 1;
+  float  identification_confidence  = 2;
+  string action_type                = 3;  // "OPEN_GATE", "MOVE_COMMAND", etc.
+  string requesting_camera          = 4;
+}
+
+message ActionResponse {
+  bool   authorized   = 1;
+  string reason       = 2;  // why authorized or denied
+  float  confidence   = 3;  // effective confidence after cross-camera validation
+}

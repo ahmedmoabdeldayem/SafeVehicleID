@@ -1,0 +1,24 @@
+[package]
+name = "safe_vehicle_id"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "safe_vehicle_id"
+path = "src/main.rs"
+
+[dependencies]
+rayon = "1.8"       # data parallelism for batch frame processing
+clap  = { version = "4.4", features = ["derive"] }
+
+[dev-dependencies]
+criterion = "0.5"   # benchmarking
+
+[[bench]]
+name = "ring_buffer_bench"
+harness = false
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1

@@ -1,0 +1,29 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# System dependencies for OpenCV
+RUN apt-get update && apt-get install -y \
+    libglib2.0-0 \
+    libsm6 \
+    libxext6 \
+    libxrender-dev \
+    libgomp1 \
+    libgl1-mesa-glx \
+    && rm -rf /var/lib/apt/lists/*
+
+# Python dependencies
+COPY python/requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY python/ ./python/
+COPY config/ ./config/
+
+# Run single-camera pipeline by default
+# Override with: docker run -e SOURCE=rtsp://... -e CAMERA_ID=2
+ENV SOURCE=0
+ENV CAMERA_ID=1
+
+CMD ["python", "-m", "python.pipeline.camera_pipeline", \
+     "--source", "${SOURCE}", \
+     "--camera-id", "${CAMERA_ID}"]

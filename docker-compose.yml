@@ -1,0 +1,53 @@
+version: "3.9"
+
+# Full system stack: 2 camera pipelines + central state service
+# For production: replace camera services with real camera sources
+
+services:
+
+  # ─── Python pipeline — Camera 1 (entry gate) ────────────────────────────────
+  camera-1:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.python
+    environment:
+      SOURCE: "0"
+      CAMERA_ID: "1"
+    volumes:
+      - ./config:/app/config:ro
+    restart: unless-stopped
+
+  # ─── Python pipeline — Camera 2 (parking zone) ──────────────────────────────
+  camera-2:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.python
+    environment:
+      SOURCE: "/app/videos/zone_a.mp4"
+      CAMERA_ID: "2"
+    volumes:
+      - ./config:/app/config:ro
+      - ./videos:/app/videos:ro
+    restart: unless-stopped
+
+  # ─── C++ pipeline — Camera 3 (high-performance, restricted zone) ────────────
+  camera-3-cpp:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.cpp
+    command: ["--source", "/dev/video1", "--camera-id", "3"]
+    devices:
+      - /dev/video1:/dev/video1
+    restart: unless-stopped
+
+  # ─── Rust frame processor (batch processing demo) ───────────────────────────
+  rust-processor:
+    build:
+      context: ./rust
+      dockerfile: ../docker/Dockerfile.rust
+    command: ["--cameras", "4", "--frames", "10000"]
+    restart: "no"
+
+networks:
+  default:
+    driver: bridge

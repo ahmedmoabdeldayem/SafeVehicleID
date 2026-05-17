@@ -1,0 +1,92 @@
+# SafeVehicleID Pipeline Configuration
+# All runtime parameters — no recompilation needed to tune thresholds
+
+# ─── Safety thresholds ────────────────────────────────────────────────────────
+safety:
+  # Minimum identification confidence to allow an action (gate, move command)
+  # Below this: hold state, do not act. This is the SOTIF mitigation.
+  identification_confidence_threshold: 0.85
+
+  # Below this but above min: monitor only (log, display, no physical action)
+  monitoring_confidence_threshold: 0.70
+
+  # Frames after which a cached identification expires (re-run ANPR/Re-ID)
+  max_identification_age_frames: 30
+
+# ─── Detection ────────────────────────────────────────────────────────────────
+detection:
+  # Method: background_subtraction (fast, good for static cameras)
+  #         yolo (more robust, requires GPU for real-time)
+  method: background_subtraction
+
+  # YOLO settings (only used if method: yolo)
+  yolo_model: yolov8n          # yolov8n / yolov8s / yolov8m / yolov8l
+  confidence_threshold: 0.5
+  nms_threshold: 0.4
+
+  # Background subtraction settings
+  bg_history: 500              # frames to build background model
+  bg_var_threshold: 16.0       # Mahalanobis distance for fg/bg decision
+  min_contour_area: 3000       # pixels — filters pedestrians and noise
+  max_contour_area: 200000     # pixels — avoids whole-frame artifacts
+
+# ─── Tracking (SORT) ──────────────────────────────────────────────────────────
+tracking:
+  max_disappeared_frames: 15   # frames before a track is deleted
+  min_hits_to_confirm: 3       # consecutive matches before track is reported
+  iou_threshold: 0.3           # minimum IoU for detection-track match
+
+  kalman:
+    process_noise: 0.01        # Q scale — how much vehicle can deviate from constant velocity
+    measurement_noise: 0.1     # R scale — trust in detector output
+
+# ─── Identification ───────────────────────────────────────────────────────────
+identification:
+  anpr:
+    enabled: true
+    min_ocr_confidence: 0.6
+    # Languages for OCR (German plates: de, en)
+    ocr_languages: ["en", "de"]
+
+  reid:
+    enabled: true
+    similarity_threshold: 0.80
+    backbone: resnet50          # feature extractor model
+    embedding_dim: 2048
+    gallery_max_embeddings: 10  # averaged embeddings per vehicle
+
+# ─── Anomaly detection ────────────────────────────────────────────────────────
+anomaly:
+  max_speed_pixels_per_frame: 25.0   # ~5 km/h at typical parking camera
+  max_dwell_frames: 150              # 5 seconds at 30fps — stalled vehicle
+  statistical_threshold_percentile: 99.0
+
+# ─── Camera definitions ───────────────────────────────────────────────────────
+# Add/remove entries to scale the system
+cameras:
+  - id: 1
+    source: "0"                    # webcam index, file path, or rtsp://...
+    restricted_zone: false
+    description: "Parking entry gate"
+
+  - id: 2
+    source: "parking_lot_cam2.mp4"
+    restricted_zone: false
+    description: "Zone A overview"
+
+  - id: 3
+    source: "rtsp://192.168.1.101:554/stream"
+    restricted_zone: true          # unknown vehicles flagged as anomaly
+    description: "Staff-only zone"
+
+# ─── Output ───────────────────────────────────────────────────────────────────
+output:
+  display: false                   # show OpenCV windows (dev only)
+  log_level: INFO
+
+  # gRPC endpoint for central state service
+  # grpc_endpoint: "localhost:50051"
+
+  # Kafka broker for event streaming (optional)
+  # kafka_broker: "localhost:9092"
+  # kafka_topic: "vehicle-tracks"
