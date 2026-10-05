@@ -75,7 +75,7 @@ cameras:
     description: "Zone A overview"
 
   - id: 3
-    source: "rtsp://192.168.1.101:554/stream"
+    source: "${CAMERA_3_URL}"          # set CAMERA_3_URL=rtsp://<ip>:554/stream
     restricted_zone: true          # unknown vehicles flagged as anomaly
     description: "Staff-only zone"
 
