@@ -42,8 +42,6 @@ pub struct Consumer<T, const N: usize> {
     inner: Arc<Inner<T, N>>,
 }
 
-const MASK_FOR<const N: usize>: usize = N - 1;
-
 /// Create a matched producer/consumer pair for a ring buffer of capacity N.
 ///
 /// N must be a power of 2. This is checked at compile time via the const assertion.

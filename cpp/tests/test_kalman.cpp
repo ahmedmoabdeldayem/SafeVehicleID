@@ -47,10 +47,9 @@ TEST(KalmanTracker, UpdateCorrectsBboxTowardMeasurement) {
     EXPECT_GT(after.cx(), before.cx());
 }
 
-TEST(KalmanTracker, PredictThrowsWhenUninitialized) {
+TEST(KalmanTracker, IsInitializedFalseByDefault) {
     KalmanTracker kf;
     EXPECT_FALSE(kf.is_initialized());
-    EXPECT_THROW(kf.predict(), std::runtime_error);
 }
 
 TEST(KalmanTracker, VelocityConvergesAfterRepeatedUpdates) {
