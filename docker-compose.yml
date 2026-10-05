@@ -1,5 +1,3 @@
-version: "3.9"
-
 # Full system stack: 2 camera pipelines + central state service
 # For production: replace camera services with real camera sources
 

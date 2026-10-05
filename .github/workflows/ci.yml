@@ -1,0 +1,63 @@
+name: CI
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+    branches: [master, main]
+
+jobs:
+  python:
+    name: Python Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r python/requirements.txt
+
+      - name: Run tests
+        run: pytest python/tests/ -v --cov=python --cov-report=term-missing
+
+  rust:
+    name: Rust Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: rust
+
+      - name: Run tests
+        working-directory: rust
+        run: cargo test --verbose
+
+  cpp:
+    name: C++ Build & Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake libopencv-dev
+
+      - name: Configure
+        working-directory: cpp
+        run: cmake -B build -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTS=ON
+
+      - name: Build
+        working-directory: cpp
+        run: cmake --build build --parallel $(nproc)
+
+      - name: Run tests
+        working-directory: cpp/build
+        run: ctest --output-on-failure
