@@ -139,18 +139,20 @@ impl TrackRegistry {
                     matched_det_indices[di] = true;
                     matched_track_ids.push(tid);
 
+                    let min_hits = inner.min_hits_to_confirm;
                     let t = inner.tracks.get_mut(&tid).unwrap();
                     t.bbox = detections[di].clone();
                     t.hits += 1;
                     t.consecutive_misses = 0;
-                    if t.hits >= inner.min_hits_to_confirm {
+                    if t.hits >= min_hits {
                         t.state = TrackState::Confirmed;
                     }
                 }
                 None => {
+                    let max_disappeared = inner.max_disappeared;
                     let t = inner.tracks.get_mut(&tid).unwrap();
                     t.consecutive_misses += 1;
-                    if t.consecutive_misses > inner.max_disappeared {
+                    if t.consecutive_misses > max_disappeared {
                         t.state = TrackState::Deleted;
                     }
                 }

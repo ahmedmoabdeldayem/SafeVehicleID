@@ -53,8 +53,9 @@ def test_predict_propagates_velocity():
     kf.initialize(np.array([100.0, 100.0, 200.0, 200.0]))
 
     # Simulate vehicle moving right by 20px per frame
-    for _ in range(10):
-        kf.update(np.array([120.0, 100.0, 220.0, 200.0]))
+    for i in range(10):
+        offset = 20.0 * (i + 1)
+        kf.update(np.array([100.0 + offset, 100.0, 200.0 + offset, 200.0]))
         kf.predict()
 
     vx, vy = kf.get_velocity()
