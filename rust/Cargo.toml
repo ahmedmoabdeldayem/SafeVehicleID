@@ -14,10 +14,6 @@ clap  = { version = "4.4", features = ["derive"] }
 [dev-dependencies]
 criterion = "0.5"   # benchmarking
 
-[[bench]]
-name = "ring_buffer_bench"
-harness = false
-
 [profile.release]
 opt-level = 3
 lto = true

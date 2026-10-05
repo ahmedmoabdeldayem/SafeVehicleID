@@ -20,7 +20,7 @@ add_compile_options(-Wall -Wextra -Wpedantic)
 # ─── Dependencies ─────────────────────────────────────────────────────────────
 
 # OpenCV — required
-find_package(OpenCV REQUIRED COMPONENTS core imgproc videoio highgui)
+find_package(OpenCV REQUIRED COMPONENTS core imgproc video videoio highgui)
 message(STATUS "OpenCV version: ${OpenCV_VERSION}")
 message(STATUS "OpenCV libs: ${OpenCV_LIBS}")
 
