@@ -13,6 +13,7 @@ as rules. Identity checks enforce access control.
 
 from __future__ import annotations
 
+import math
 import numpy as np
 from dataclasses import dataclass
 from enum import Enum
@@ -263,6 +264,7 @@ class AnomalyDetector:
         )
         self.statistical = StatisticalAnomalyDetector()
         self._velocity_windows: dict[int, deque] = {}
+        self._prev_velocity: dict[int, tuple[float, float]] = {}
 
     def fit_statistical(self, normal_feature_vectors: np.ndarray) -> None:
         """Fit the statistical model on normal behavior data."""
@@ -307,13 +309,16 @@ class AnomalyDetector:
 
             if len(win) >= 2:
                 acceleration = abs(win[-1] - win[-2])
-                # Curvature approximation: change in direction
+                # Curvature approximation: angular change in heading from previous frame
                 curvature = 0.0
-                if len(win) >= 3:
-                    v_prev = np.array([vx, vy])
-                    speed_prev = win[-2]
+                if track_id in self._prev_velocity:
+                    prev_vx, prev_vy = self._prev_velocity[track_id]
+                    speed_prev = math.sqrt(prev_vx ** 2 + prev_vy ** 2)
                     if speed > 0 and speed_prev > 0:
-                        curvature = abs(np.arctan2(vy, vx))
+                        delta = math.atan2(vy, vx) - math.atan2(prev_vy, prev_vx)
+                        # Normalize to [-π, π]
+                        delta = (delta + math.pi) % (2 * math.pi) - math.pi
+                        curvature = abs(delta)
 
                 event = self.statistical.detect(
                     track_id, speed, acceleration, curvature,
@@ -321,6 +326,8 @@ class AnomalyDetector:
                 )
                 if event:
                     events.append(event)
+
+            self._prev_velocity[track_id] = (vx, vy)
 
         # Layer 3: identity check in restricted zone
         if restricted_zone and (vehicle_id is None or identification_confidence < 0.70):
@@ -339,3 +346,4 @@ class AnomalyDetector:
     def remove_track(self, track_id: int) -> None:
         self.rules.remove_track(track_id)
         self._velocity_windows.pop(track_id, None)
+        self._prev_velocity.pop(track_id, None)

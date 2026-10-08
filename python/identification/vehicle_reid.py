@@ -15,6 +15,7 @@ This is the same paradigm as face recognition — just for vehicles.
 
 from __future__ import annotations
 
+import time
 import numpy as np
 from dataclasses import dataclass, field
 
@@ -31,11 +32,13 @@ class GalleryEntry:
     vehicle_id: str
     embeddings: list[np.ndarray] = field(default_factory=list)
     max_embeddings: int = 10    # keep last N embeddings, average them
+    last_seen: float = field(default_factory=time.time)
 
     def add_embedding(self, emb: np.ndarray) -> None:
         self.embeddings.append(emb)
         if len(self.embeddings) > self.max_embeddings:
             self.embeddings.pop(0)
+        self.last_seen = time.time()
 
     def get_mean_embedding(self) -> np.ndarray:
         return np.mean(self.embeddings, axis=0)
@@ -186,10 +189,18 @@ class VehicleReID:
     def gallery_size(self) -> int:
         return len(self._gallery)
 
+    def _evict_stale_entries(self, ttl_seconds: float = 300.0) -> None:
+        """Remove gallery entries that have not been seen within ttl_seconds."""
+        cutoff = time.time() - ttl_seconds
+        stale = [vid for vid, entry in self._gallery.items() if entry.last_seen < cutoff]
+        for vid in stale:
+            del self._gallery[vid]
+
     def _register_new(self, embedding: np.ndarray) -> str:
         new_id = f"VEH-{self._next_vehicle_id:05d}"
         self._next_vehicle_id += 1
         entry = GalleryEntry(vehicle_id=new_id)
         entry.add_embedding(embedding)
         self._gallery[new_id] = entry
+        self._evict_stale_entries()
         return new_id

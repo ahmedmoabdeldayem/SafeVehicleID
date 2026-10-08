@@ -11,6 +11,7 @@ from __future__ import annotations
 import logging
 import threading
 import time
+from collections import deque
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -32,7 +33,7 @@ class GlobalVehicleState:
     last_velocity: tuple[float, float]
     last_seen_timestamp: float
     active_anomalies: list[AnomalyEvent] = field(default_factory=list)
-    history: list[dict] = field(default_factory=list)  # position history
+    history: deque = field(default_factory=lambda: deque(maxlen=200))  # position history
 
     @property
     def is_stale(self) -> bool:
@@ -138,11 +139,11 @@ class MultiCameraManager:
         if event.vehicle_id is None:
             return
 
-        self._total_events += 1
         cx = (event.bbox[0] + event.bbox[2]) / 2
         cy = (event.bbox[1] + event.bbox[3]) / 2
 
         with self._state_lock:
+            self._total_events += 1
             if event.vehicle_id not in self._global_state:
                 self._global_state[event.vehicle_id] = GlobalVehicleState(
                     vehicle_id=event.vehicle_id,
@@ -168,11 +169,10 @@ class MultiCameraManager:
                     "pos": (cx, cy),
                     "ts": event.timestamp,
                 })
-                if len(state.history) > 200:
-                    state.history.pop(0)
 
     def _handle_anomaly(self, event: AnomalyEvent) -> None:
-        self._total_anomalies += 1
+        with self._state_lock:
+            self._total_anomalies += 1
         logger.warning(
             f"ANOMALY | type={event.anomaly_type.value} "
             f"track={event.track_id} severity={event.severity:.2f} | {event.description}"

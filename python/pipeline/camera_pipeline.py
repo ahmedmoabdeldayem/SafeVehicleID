@@ -85,13 +85,14 @@ class TrackEvent:
     vehicle_id: str | None
     identification_confidence: float
     anomalies: list[AnomalyEvent] = field(default_factory=list)
+    identification_confidence_threshold: float = 0.85
 
     @property
     def is_safe_to_act(self) -> bool:
         """True if identification confidence is above safety threshold."""
         return (
             self.vehicle_id is not None
-            and self.identification_confidence >= 0.85
+            and self.identification_confidence >= self.identification_confidence_threshold
             and len(self.anomalies) == 0
         )
 
@@ -131,6 +132,7 @@ class CameraPipeline:
             max_disappeared=self.config.max_disappeared_frames,
             min_hits_to_confirm=self.config.min_hits_to_confirm,
             iou_threshold=self.config.iou_threshold,
+            on_track_deleted=self._on_track_deleted,
         )
         self._plate_recognizer = LicensePlateRecognizer(
             min_confidence=self.config.identification_confidence_threshold
@@ -245,6 +247,7 @@ class CameraPipeline:
                     vehicle_id=vehicle_id,
                     identification_confidence=id_confidence,
                     anomalies=anomalies,
+                    identification_confidence_threshold=self.config.identification_confidence_threshold,
                 )
 
                 self.on_track_event(event)
@@ -309,6 +312,14 @@ class CameraPipeline:
                     pass
 
         return None, 0.0
+
+    def _on_track_deleted(self, track_id: int) -> None:
+        """Called by the tracker when a track is deleted. Clean up associated state."""
+        cached = self._id_cache.pop(track_id, None)
+        if cached is not None:
+            vehicle_id, _conf, _age = cached
+            self._reid.remove_vehicle(vehicle_id)
+        self._anomaly_detector.remove_track(track_id)
 
     def _display(self, frame: np.ndarray, tracks: list[Track]) -> None:
         viz = frame.copy()

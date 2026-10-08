@@ -102,12 +102,14 @@ class SORTTracker:
         iou_threshold: float = 0.3,
         process_noise: float = 0.01,
         measurement_noise: float = 0.1,
+        on_track_deleted: "Callable[[int], None] | None" = None,
     ):
         self.max_disappeared = max_disappeared
         self.min_hits_to_confirm = min_hits_to_confirm
         self.iou_threshold = iou_threshold
         self.process_noise = process_noise
         self.measurement_noise = measurement_noise
+        self.on_track_deleted = on_track_deleted
 
         self.tracks: list[Track] = []
         self._next_id: int = 1
@@ -152,7 +154,11 @@ class SORTTracker:
         for det_idx in unmatched_dets:
             self._create_track(detections[det_idx])
 
-        # Remove deleted tracks
+        # Remove deleted tracks, firing callback for each one
+        if self.on_track_deleted is not None:
+            for t in self.tracks:
+                if t.state == TrackState.DELETED:
+                    self.on_track_deleted(t.track_id)
         self.tracks = [t for t in self.tracks if t.state != TrackState.DELETED]
 
         return [t for t in self.tracks if t.state == TrackState.CONFIRMED]
