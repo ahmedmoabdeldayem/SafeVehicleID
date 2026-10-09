@@ -1,6 +1,6 @@
 numpy==1.26.4
 opencv-python==4.10.0.84
-scipy==1.18.1
+scipy==1.17.1
 ultralytics==8.4.174
 easyocr==1.7.2
 torch==2.14.1
