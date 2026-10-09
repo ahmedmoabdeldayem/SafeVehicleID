@@ -1,11 +1,11 @@
 numpy==1.26.4
 opencv-python==4.10.0.84
-scipy==1.13.1
-ultralytics==8.3.0
+scipy==1.18.1
+ultralytics==8.4.174
 easyocr==1.7.2
-torch==2.4.1
-torchvision==0.19.1
+torch==2.14.1
+torchvision==0.29.1
 pyyaml==6.0.3
 pytest==9.1.1
 pytest-cov==7.1.0
-scikit-learn==1.5.2
+scikit-learn==1.9.1
